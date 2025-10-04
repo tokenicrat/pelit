@@ -1,0 +1,38 @@
+[build-system]
+requires = ["uv_build>=0.8.22,<0.9.0"]
+build-backend = "uv_build"
+
+[project]
+name = "pelit"
+version = "0.1.0"
+authors = [{ name = "Tokenicrat", email = "hi@bytoken.link" }]
+description = "小而美的私有图床"
+readme = "README.md"
+license = "MIT"
+keywords = ["flask", "kiss", "image-hosting", "typed-python"]
+classifiers = [
+    "Development Status :: 2 - Pre-Alpha",
+    "Framework :: Flask",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: POSIX :: Linux",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Internet :: WWW/HTTP :: WSGI :: Server",
+    "Typing :: Typed"
+]
+
+requires-python = ">=3.13"
+dependencies = [
+    "flask>=3.1.2",
+    "gunicorn>=23.0.0",
+    "jsonschema>=4.25.1",
+]
+
+[project.urls]
+Repository = "https://github.com/tokenicrat/pelit"
+Documentation = "https://github.com/tokenicrat/pelit/wiki"
+Issues = "https://github.com/tokenicrat/pelit/issues"
+
+[project.scripts]
+pelitctl = "tools.pelitctl:main"
+pelit = "tools.pelit:main"

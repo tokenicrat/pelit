@@ -1,0 +1,34 @@
+version = "0.1.0"
+
+[network]
+# 监听的地址和端口
+addr = "0.0.0.0"
+port = 7777
+# 也可以为（需要密钥的）私有接口单独设置，提升安全性
+# api_addr = "127.0.0.1"
+# api_port = 6666
+
+# 达到设置的存储警告值时，在私有接口响应中添加警告信息
+# storage_warn = false
+
+# 反盗链（验证请求 Referer 头）
+# hotlink_block = false
+# 白名单，可以使用 * 通配
+# hotlink_whitelist = ["example-a.com", "*.example-b.com"]
+
+[storage]
+# 存储路径
+path = "/app/data"
+
+# 存储空间警告限制，设为 0 时禁用（同时 storage_warn 也无效）
+# 单位 MB
+# warn = 0
+# 存储空间最大限制，上传将失败，设为 0 时禁用
+# max = 0
+
+[auth]
+# 从环境变量 PELIT_AUTH 中读取密钥
+from_env = true
+# 或直接提供 SHA256 散列化的密钥
+# 使用 16 进制格式，参考：https://emn178.github.io/online-tools/sha256.html
+# hashed = "9EBF8C8F69731148C2DD14C93EB021E58D2CDD253580576C92F6102EF4F0610C"
