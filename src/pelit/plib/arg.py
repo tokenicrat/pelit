@@ -17,7 +17,10 @@ def parse_arguments(args: list[str]) -> Result[Commandline_params, str]:
         "verbosity": 1,
         "log_path": None
     }
-    
+
+    if len(args) < 2:
+        return Err("缺少参数")
+
     # 第一个参数是动词
     verb: str = args[1]
     if verb == "check":

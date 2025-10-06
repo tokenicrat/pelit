@@ -21,6 +21,9 @@ config_schema: JSONSchema = {
             "type": "object",
             "required": ["addr", "port"],
             "properties": {
+                "base_url": {
+                    "type": "string"
+                },
                 "addr": {
                     "type": "string",
                     "anyOf": [{"format": "ipv4"}, {"format": "ipv6"}]
