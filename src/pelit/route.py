@@ -182,4 +182,24 @@ def create_route(cfg: dict[str, Any], logger: p_logger) -> Blueprint:
                 "message": "保存失败"
             }), 502
 
+    @main_route.route('/delete/<directory>/<file>', methods=['DELETE'])
+    def delete(directory: str, file: str) -> Tuple[Response, int]:
+        info_head = f"{request.remote_addr} {request.method} {request.path}"
+        path = Path(cfg['storage']['path']) / directory / file
+        try:
+            os.remove(str(path))
+            logger.info(f'{info_head} 200 删除成功')
+            return jsonify({
+                "success": True,
+                "message": "删除成功"
+            }), 200
+        except Exception as e:
+            logger.warn(f'{info_head} 502 删除失败')
+            logger.warn(f'这是一个内部错误，请检查配置')
+            logger.warn(str(e))
+            return jsonify({
+                "success": False,
+                "message": "创建目录失败"
+            }), 502
+
     return main_route
