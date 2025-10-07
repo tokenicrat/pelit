@@ -73,7 +73,7 @@ class p_logger:
         if self._level > 1:
             return
         else:
-            self._fileio.write(self._format_msg_head(0) + message + '\n')
+            self._fileio.write(self._format_msg_head(1) + message + '\n')
     
     def error(self, message: str):
         """
@@ -82,4 +82,4 @@ class p_logger:
         Args:
             message: 信息内容
         """
-        self._fileio.write(self._format_msg_head(0) + message + '\n')
+        self._fileio.write(self._format_msg_head(2) + message + '\n')

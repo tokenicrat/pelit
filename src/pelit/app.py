@@ -31,7 +31,7 @@ def create_app() -> Flask:
         exit(0)
 
     # 导入 route.py 定义的路径
-    route = create_route(cfg)
+    route = create_route(cfg, lg)
 
     # 创建 Flask 应用
     app = Flask(__name__)

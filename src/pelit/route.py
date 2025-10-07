@@ -1,10 +1,12 @@
-from flask import Blueprint, request, abort, Response, jsonify
+from flask import Blueprint, request, Response, jsonify
 from typing import Any, Optional, Tuple
 import os
 import secrets
 from pathlib import Path
+import hashlib
+from pelit.plib.log import p_logger
 
-def create_route(cfg: dict[str, Any]) -> Blueprint:
+def create_route(cfg: dict[str, Any], logger: p_logger) -> Blueprint:
     """
     创建路径，使用 Flask Blueprint
 
@@ -31,14 +33,16 @@ def create_route(cfg: dict[str, Any]) -> Blueprint:
         if token.startswith("Bearer"):
             token = token[7:]
         
-        if cfg['auth']['hashed'] and not cfg['auth']['from_env']:
-            token_set: str = cfg["auth"]["hashed"]
-        elif os.environ['PELIT_AUTH']:
+        # 验证密钥，可用 PELIT_AUTH 环境变量或配置文件
+        if 'hashed' in cfg['auth'] and not 'from_env' in cfg['auth']:
+            token_set: str = cfg['auth']['hashed']
+            return token_set.upper() == \
+                hashlib.sha256(token.encode('utf-8')).hexdigest().upper()
+        elif 'PELIT_AUTH' in os.environ and 'from_env' in cfg['auth']:
             token_set: str = os.environ['PELIT_AUTH']
+            return token_set.upper() == token.upper()
         else:
             return False
-        
-        return token == token_set
 
     def _generate_file_name(directory: str, extension: str) -> str:
         """
@@ -52,8 +56,8 @@ def create_route(cfg: dict[str, Any]) -> Blueprint:
             有效的 str 类型文件名，无后缀
         """
         while True:
-            filename = secrets.token_hex(10) + extension
-            full_path: Path = Path(directory) / filename
+            filename = secrets.token_hex(10)
+            full_path: Path = Path(directory) / (filename + extension)
             
             if not full_path.exists():
                 return filename
@@ -68,11 +72,11 @@ def create_route(cfg: dict[str, Any]) -> Blueprint:
         storage = Path(cfg['storage']['path'])
         size = sum(f.stat().st_size for f in storage.rglob('*') if f.is_file()) / 1024 / 1024
         
-        if cfg['storage']['max']:
+        if 'max' in cfg['storage']:
             if size > cfg['storage']['max']:
                 return 2
 
-        if cfg['storage']['warn']:
+        if 'warn' in cfg['storage']:
             if size > cfg['storage']['warn']:
                 return 1
         
@@ -97,11 +101,17 @@ def create_route(cfg: dict[str, Any]) -> Blueprint:
     # 上传接口
     @main_route.route('/upload/<directory>', methods=['POST'])
     def upload(directory: str) -> Tuple[Response, int]:
+        info_head = f"{request.remote_addr} {request.method} {request.path}"
         if not _authenticate():
-            abort(401)
+            logger.warn(f"{info_head} 401: 认证失败")
+            return jsonify({
+                "success": False,
+                "message": "认证失败"
+            }), 401
         
         # 请求需要包含文件上传
         if 'file' not in request.files:
+            logger.warn(f"{info_head} 400: 未包含文件")
             return jsonify({
                     "success": False,
                     "message": "未包含文件"
@@ -110,6 +120,7 @@ def create_route(cfg: dict[str, Any]) -> Blueprint:
         # 检查是否超过存储空间限制
         size_warn: int = _enough_space()
         if size_warn == 2:
+            logger.warn(f"{info_head} 502: 存储空间超限")
             return jsonify({
                 "success": False,
                 "message": "存储空间已超过限制"
@@ -118,6 +129,7 @@ def create_route(cfg: dict[str, Any]) -> Blueprint:
         # 验证文件名不为空
         file = request.files['file']
         if file.filename == '':
+            logger.warn(f"{info_head} 400: 无效的文件")
             return jsonify({
                 "success": False,
                 "message": "无效的文件"
@@ -125,22 +137,46 @@ def create_route(cfg: dict[str, Any]) -> Blueprint:
         
         # 构建后缀、文件名和路径
         assert file.filename is not None
+        # 源文件后缀名
         ext = Path(file.filename).suffix.lstrip('.')
+        if not ext == '':
+            ext = '.' + ext
+        # 文件名，无后缀
         name = _generate_file_name(str(Path(cfg['storage']['path']) / directory), ext)
-        path = str(Path(cfg['storage']['path']) / directory / (name + '.' + ext))
+        # 保存目录
+        path = Path(cfg['storage']['path']) / directory
+
+        if not path.exists():
+            try:
+                os.mkdir(str(path))
+            except Exception as e:
+                logger.warn(f'{info_head} 502 创建目录失败: {str(path)}')
+                logger.warn(f'这是一个内部错误，请检查配置')
+                logger.warn(str(e))
+                return jsonify({
+                    "success": False,
+                    "message": "创建目录失败"
+                }), 502
 
         # 尝试保存文件
         try:
-            file.save(path)
+            file.save(str(path / (name + ext)))
             resp: dict[str, Any] = {
                 "success": True,
                 "message": "保存成功",
-                "url": _join_url(cfg['network']['base_url'], str(Path(directory) / (name + '.' + ext)))
+                "url": _join_url(cfg['network']['base_url'] if 'bare_url' in cfg['network'] else '', \
+                                 str(Path(directory) / (name + ext)))
             }
             if size_warn == 1:
                 resp["warning"] = "存储空间已达警告值"
+                logger.warn(f"存储空间已达警告值")
+            logger.info(f"{info_head} 200: 保存成功")
+            logger.info(f"地址: {resp['url']}")
             return jsonify(resp), 200
-        except:
+        except Exception as e:
+            logger.warn(f"{info_head} 502: 保存失败")
+            logger.warn("这是一个服务端错误，请检查配置")
+            logger.warn(str(e))
             return jsonify({
                 "success": False,
                 "message": "保存失败"
