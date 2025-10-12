@@ -20,6 +20,10 @@ config_schema: JSONSchema = {
         "network": {
             "type": "object",
             "required": ["addr", "port"],
+            "dependentRequired": {
+                "api_addr": ["api_port"],
+                "api_port": ["api_addr"]
+            },
             "properties": {
                 "base_url": {
                     "type": "string"
@@ -42,9 +46,6 @@ config_schema: JSONSchema = {
                     "minimum": 1,
                     "maximum": 65535
                 },
-                "storage_warn": {
-                    "type": "boolean"
-                },
                 "hotlink_block": {
                     "type": "boolean"
                 },
@@ -65,11 +66,11 @@ config_schema: JSONSchema = {
                     "type": "string"
                 },
                 "warn": {
-                    "type": "integer",
+                    "type": "number",
                     "minimum": 0
                 },
                 "max": {
-                    "type": "integer",
+                    "type": "number",
                     "minimum": 0
                 }
             },
@@ -86,7 +87,7 @@ config_schema: JSONSchema = {
                     "pattern": "^[A-Fa-f0-9]{64}$"
                 }
             },
-            "oneOf": [
+            "anyOf": [
                 {"required": ["from_env"]},
                 {"required": ["hashed"]}
             ],
