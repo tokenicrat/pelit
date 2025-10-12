@@ -45,12 +45,12 @@ def create_route(cfg: dict[str, Any], logger: p_logger) -> Blueprint:
         else:
             return False
 
-    def _generate_file_name(directory: str, extension: str) -> str:
+    def _generate_file_name(directory: Path, extension: str) -> str:
         """
         [INTERNAL] 随机生成一个有效的文件（路径）名
 
         Args:
-            directory: 保存目录的名字，可以是空字符串
+            directory: 保存目录的 Path 对象
             extension: 保存的拓展名，可以是空字符串
         
         Returns:
@@ -58,7 +58,7 @@ def create_route(cfg: dict[str, Any], logger: p_logger) -> Blueprint:
         """
         while True:
             filename = secrets.token_hex(10)
-            full_path: Path = Path(directory) / (filename + extension)
+            full_path = directory / (filename + extension)
             
             if not full_path.exists():
                 return filename
@@ -97,8 +97,8 @@ def create_route(cfg: dict[str, Any], logger: p_logger) -> Blueprint:
         b = b.lstrip('/')
         return a + '/' + b
 
-    def _list_dir(path: str) -> list[str]:
-        return [item.name for item in Path(path).iterdir() if not item.name.startswith('.')]
+    def _list_dir(path: Path) -> list[str]:
+        return [item.name for item in path.iterdir() if not item.name.startswith('.')]
 
     def _is_attempting_traversal(comp: str) -> bool:
         """
@@ -173,16 +173,17 @@ def create_route(cfg: dict[str, Any], logger: p_logger) -> Blueprint:
         ext = Path(file.filename).suffix.lstrip('.')
         if not ext == '':
             ext = '.' + ext
-        # 文件名，无后缀
-        name = _generate_file_name(str(Path(cfg['storage']['path']) / directory), ext)
         # 保存目录
-        path = Path(cfg['storage']['path']) / directory
+        storage_path = Path(cfg['storage']['path'])
+        path = storage_path / directory
+        # 文件名，无后缀
+        name = _generate_file_name(path, ext)
 
         if not path.exists():
             try:
-                os.mkdir(str(path))
+                path.mkdir(parents=True, exist_ok=True)
             except Exception as e:
-                logger.warn(f'{info_head} 502 创建目录失败: {str(path)}')
+                logger.warn(f'{info_head} 502 创建目录失败: {path}')
                 logger.warn(f'这是一个内部错误，请检查配置')
                 logger.warn(str(e))
                 return jsonify({
@@ -192,12 +193,14 @@ def create_route(cfg: dict[str, Any], logger: p_logger) -> Blueprint:
 
         # 尝试保存文件
         try:
-            file.save(str(path / (name + ext)))
+            file_path = path / (name + ext)
+            file.save(str(file_path))
+            url_path = Path(directory) / (name + ext)
             resp: dict[str, Any] = {
                 "success": True,
                 "message": "保存成功",
-                "url": _join_url(cfg['network']['base_url'] if 'base_url' in cfg['network'] else '', \
-                                 str(Path(directory) / (name + ext)))
+                "url": _join_url(cfg['network']['base_url'] if 'base_url' in cfg['network'] else '', 
+                                 url_path.as_posix())
             }
             if size_warn == 1:
                 resp["warning"] = "存储空间已达警告值"
@@ -244,7 +247,7 @@ def create_route(cfg: dict[str, Any], logger: p_logger) -> Blueprint:
        
         path = Path(cfg['storage']['path']) / directory / file
         try:
-            os.remove(str(path))
+            path.unlink()
             logger.info(f'{info_head} 200 删除成功')
             return jsonify({
                 "success": True,
@@ -283,10 +286,11 @@ def create_route(cfg: dict[str, Any], logger: p_logger) -> Blueprint:
             }), 401
         
         try:
+            storage_path = Path(cfg['storage']['path'])
             resp: dict[str, Any] = {
                 "success": True,
                 "message": "",
-                "list": _list_dir(cfg['storage']['path'])
+                "list": _list_dir(storage_path)
             }
             logger.info(f'{info_head} 200 列举成功')
             return jsonify(resp), 200
@@ -317,10 +321,11 @@ def create_route(cfg: dict[str, Any], logger: p_logger) -> Blueprint:
             }), 401
         
         try:
+            path = Path(cfg['storage']['path']) / directory
             resp: dict[str, Any] = {
                 "success": True,
                 "message": "",
-                "list": _list_dir(str(Path(cfg['storage']['path']) / directory))
+                "list": _list_dir(path)
             }
             logger.info(f'{info_head} 200 列举成功')
             return jsonify(resp), 200
