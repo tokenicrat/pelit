@@ -93,14 +93,26 @@ def create_route(cfg: dict[str, Any], logger: p_logger) -> Blueprint:
         Returns:
             连接后的 URL
         """
-        if a.endswith('/'):
-            a.rstrip('/')
-        if b.startswith('/'):
-            b.lstrip('/')
+        a = a.rstrip('/')
+        b = b.lstrip('/')
         return a + '/' + b
 
     def _list_dir(path: str) -> list[str]:
         return [item.name for item in Path(path).iterdir() if not item.name.startswith('.')]
+
+    def _is_attempting_traversal(comp: str) -> bool:
+        """
+        防止路径攻击未授权访问
+
+        Args:
+            comp: 路径中的部分（非完整路径）
+        
+        Returns:
+            True 表示是危险请求，False 表示安全
+        """
+        if '..' in comp or '/' in comp or '\\' in comp:
+            return True
+        return False
 
     @main_route.route('/upload/<directory>', methods=['POST'])
     def upload(directory: str) -> tuple[Response, int]:
@@ -114,6 +126,7 @@ def create_route(cfg: dict[str, Any], logger: p_logger) -> Blueprint:
             上传结果，包括 JSON 格式的响应和状态码
         """
         info_head = f"{request.remote_addr} {request.method} {request.path}"
+
         if not _authenticate():
             logger.warn(f"{info_head} 401: 认证失败")
             return jsonify({
@@ -121,6 +134,13 @@ def create_route(cfg: dict[str, Any], logger: p_logger) -> Blueprint:
                 "message": "认证失败"
             }), 401
         
+        if _is_attempting_traversal(directory):
+            logger.warn(f"{info_head} 403 危险请求")
+            return jsonify({
+                "success": False,
+                "message": "危险请求"
+            }), 403
+
         # 请求需要包含文件上传
         if 'file' not in request.files:
             logger.warn(f"{info_head} 400: 未包含文件")
@@ -176,7 +196,7 @@ def create_route(cfg: dict[str, Any], logger: p_logger) -> Blueprint:
             resp: dict[str, Any] = {
                 "success": True,
                 "message": "保存成功",
-                "url": _join_url(cfg['network']['base_url'] if 'bare_url' in cfg['network'] else '', \
+                "url": _join_url(cfg['network']['base_url'] if 'base_url' in cfg['network'] else '', \
                                  str(Path(directory) / (name + ext)))
             }
             if size_warn == 1:
@@ -207,6 +227,7 @@ def create_route(cfg: dict[str, Any], logger: p_logger) -> Blueprint:
             删除结果，包含 JSON 格式的响应和状态码
         """
         info_head = f"{request.remote_addr} {request.method} {request.path}"
+
         if not _authenticate():
             logger.warn(f"{info_head} 401: 认证失败")
             return jsonify({
@@ -214,6 +235,13 @@ def create_route(cfg: dict[str, Any], logger: p_logger) -> Blueprint:
                 "message": "认证失败"
             }), 401
         
+        if _is_attempting_traversal(directory):
+            logger.warn(f"{info_head} 403 危险请求")
+            return jsonify({
+                "success": False,
+                "message": "危险请求"
+            }), 403
+       
         path = Path(cfg['storage']['path']) / directory / file
         try:
             os.remove(str(path))
@@ -246,6 +274,7 @@ def create_route(cfg: dict[str, Any], logger: p_logger) -> Blueprint:
             JSON 格式的列表和响应码
         """
         info_head = f"{request.remote_addr} {request.method} {request.path}"
+
         if not _authenticate():
             logger.warn(f"{info_head} 401: 认证失败")
             return jsonify({
@@ -279,6 +308,7 @@ def create_route(cfg: dict[str, Any], logger: p_logger) -> Blueprint:
             JSON 格式的列表和响应码
         """
         info_head = f"{request.remote_addr} {request.method} {request.path}"
+
         if not _authenticate():
             logger.warn(f"{info_head} 401: 认证失败")
             return jsonify({
@@ -323,6 +353,10 @@ def create_route(cfg: dict[str, Any], logger: p_logger) -> Blueprint:
             获取的文件和状态码
         """
         info_head = f"{request.remote_addr} {request.method} {request.path}"
+
+        if _is_attempting_traversal(directory) or _is_attempting_traversal(file):
+            logger.warn(f"{info_head} 403 危险请求")
+            return Response("禁止访问"), 403
         
         # 验证 Referer 请求头
         referer =  request.headers.get("Referer")
@@ -330,7 +364,7 @@ def create_route(cfg: dict[str, Any], logger: p_logger) -> Blueprint:
             if cfg['network']['hotlink_block']:
                 if not referer or 'hotlink_whitelist' not in cfg['network']:
                     logger.info(f"{info_head} 403 反盗链阻止")
-                    return Response("禁止外链 Hotlinking forbidden"), 403
+                    return Response("禁止外链"), 403
                 match = False
                 for rule in cfg['network']['hotlink_whitelist']:
                     assert isinstance(rule, str)
