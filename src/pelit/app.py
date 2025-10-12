@@ -1,7 +1,7 @@
 import sys
 from flask import Flask
 from pelit.plib.result import Err
-from pelit.plib.arg import parse_arguments
+from pelit.plib.arg import parse_arguments, parse_envvars
 from pelit.plib.log import p_logger
 from pelit.plib.config import parse_config
 from pelit.route import create_route
@@ -9,10 +9,12 @@ from pelit.route import create_route
 # 准备配置文件
 def create_app() -> Flask:
     # 处理参数
-    cmd = parse_arguments(sys.argv)
+    cmd = parse_envvars()
     if isinstance(cmd, Err):
-        print(cmd)
-        exit(1)
+        cmd = parse_arguments(sys.argv)
+        if isinstance(cmd, Err):
+            print(cmd)
+            exit(1)
     cmd = cmd.value
 
     # 创建日志组件
@@ -38,7 +40,3 @@ def create_app() -> Flask:
     app.register_blueprint(route)
 
     return app
-
-if __name__ == "__main__":
-    app = create_app()
-    app.run()

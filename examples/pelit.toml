@@ -3,12 +3,7 @@ version = "0.1.0"
 [network]
 # 下载地址的 URL，用于生成下载地址
 # base_url = ""
-# 监听的地址和端口
-addr = "0.0.0.0"
-port = 7777
-# 也可以为（需要密钥的）私有接口单独设置，提升安全性
-# api_addr = "127.0.0.1"
-# api_port = 6666
+# 监听的地址和端口在 gunicorn.conf.py 中设置
 
 # 反盗链（验证请求 Referer 头）
 # hotlink_block = false
@@ -17,7 +12,7 @@ port = 7777
 
 [storage]
 # 存储路径
-path = "/app/data"
+path = "/data"
 
 # 存储空间警告限制，设为 0 时禁用
 # 单位 MB

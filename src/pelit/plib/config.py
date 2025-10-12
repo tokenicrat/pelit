@@ -20,10 +20,6 @@ config_schema: JSONSchema = {
         "network": {
             "type": "object",
             "required": ["addr", "port"],
-            "dependentRequired": {
-                "api_addr": ["api_port"],
-                "api_port": ["api_addr"]
-            },
             "properties": {
                 "base_url": {
                     "type": "string"
@@ -33,15 +29,6 @@ config_schema: JSONSchema = {
                     "anyOf": [{"format": "ipv4"}, {"format": "ipv6"}]
                 },
                 "port": {
-                    "type": "integer",
-                    "minimum": 1,
-                    "maximum": 65535
-                },
-                "api_addr": {
-                    "type": "string",
-                    "anyOf": [{"format": "ipv4"}, {"format": "ipv6"}]
-                },
-                "api_port": {
                     "type": "integer",
                     "minimum": 1,
                     "maximum": 65535

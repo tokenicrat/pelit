@@ -1,9 +1,8 @@
+import os
 from typing import TypedDict
 from pelit.plib.result import Ok, Err, Result
 
-
 # 命令行参数格式
-# TODO: 添加日志格式指定支持
 class Commandline_params(TypedDict):
     check_only: bool
     config_path: str
@@ -11,6 +10,15 @@ class Commandline_params(TypedDict):
     log_path: str | None
 
 def parse_arguments(args: list[str]) -> Result[Commandline_params, str]:
+    """
+    读取命令行参数
+
+    Args:
+        args: 传入的命令行参数列表
+    
+    Returns:
+        Result 类型的参数解析，若解析失败则返回 Err
+    """
     cmd: Commandline_params = {
         "check_only": False,
         "config_path": "",
@@ -57,4 +65,37 @@ def parse_arguments(args: list[str]) -> Result[Commandline_params, str]:
     if not cmd["config_path"]:
         return Err("必须指定 --config 或 -c")
 
+    return Ok(cmd)
+
+def parse_envvars() -> Result[Commandline_params, str]:
+    """
+    读取通过环境变量传入的配置
+
+    Returns:
+        Result 类型的参数解析，若解析失败则返回 Err
+    """
+    cmd: Commandline_params = {
+        "check_only": False,
+        "config_path": "",
+        "verbosity": 1,
+        "log_path": None
+    }
+
+    config_path = os.getenv('PELIT_CONFIG')
+    if config_path:
+        cmd["config_path"] = config_path
+    else:
+        return Err("无效的环境变量配置")
+    
+    verbosity = os.getenv('PELIT_VERBOSITY')
+    if verbosity:
+        try:
+            cmd["verbosity"] = int(verbosity)
+        except:
+            return Err("无效的日志等级")
+    
+    log_path = os.getenv('PELIT_LOG')
+    if log_path:
+        cmd["log_path"] = log_path
+    
     return Ok(cmd)
