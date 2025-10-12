@@ -1,5 +1,5 @@
 from flask import Blueprint, request, Response, jsonify
-from typing import Any, Optional, Tuple
+from typing import Any, Optional
 import os
 import secrets
 from pathlib import Path
@@ -98,9 +98,20 @@ def create_route(cfg: dict[str, Any], logger: p_logger) -> Blueprint:
             b.lstrip('/')
         return a + '/' + b
 
-    # 上传接口
+    def _list_dir(path: str) -> list[str]:
+        return [item.name for item in Path(path).iterdir() if not item.name.startswith('.')]
+
     @main_route.route('/upload/<directory>', methods=['POST'])
-    def upload(directory: str) -> Tuple[Response, int]:
+    def upload(directory: str) -> tuple[Response, int]:
+        """
+        上传接口，请求格式、响应、状态码列表参见 Pelit 文档
+
+        Args:
+            directory: 上传文件的保存目录
+        
+        Returns:
+            上传结果，包括 JSON 格式的响应和状态码
+        """
         info_head = f"{request.remote_addr} {request.method} {request.path}"
         if not _authenticate():
             logger.warn(f"{info_head} 401: 认证失败")
@@ -183,7 +194,17 @@ def create_route(cfg: dict[str, Any], logger: p_logger) -> Blueprint:
             }), 502
 
     @main_route.route('/delete/<directory>/<file>', methods=['DELETE'])
-    def delete(directory: str, file: str) -> Tuple[Response, int]:
+    def delete(directory: str, file: str) -> tuple[Response, int]:
+        """
+        删除接口，请求格式、响应、状态码列表参见 Pelit 文档
+
+        Args:
+            directory: 删除的文件所在目录
+            file: 删除的文件名
+        
+        Returns:
+            删除结果，包含 JSON 格式的响应和状态码
+        """
         info_head = f"{request.remote_addr} {request.method} {request.path}"
         path = Path(cfg['storage']['path']) / directory / file
         try:
@@ -193,6 +214,12 @@ def create_route(cfg: dict[str, Any], logger: p_logger) -> Blueprint:
                 "success": True,
                 "message": "删除成功"
             }), 200
+        except FileNotFoundError:
+            logger.info(f"{info_head} 404 未找到文件")
+            return jsonify({
+                "success": False,
+                "message": "没有找到文件"
+            }), 404
         except Exception as e:
             logger.warn(f'{info_head} 502 删除失败')
             logger.warn(f'这是一个内部错误，请检查配置')
@@ -200,6 +227,64 @@ def create_route(cfg: dict[str, Any], logger: p_logger) -> Blueprint:
             return jsonify({
                 "success": False,
                 "message": "创建目录失败"
+            }), 502
+
+    @main_route.route('/list')
+    def list_root() -> tuple[Response, int]:
+        """
+        列出根目录下所有目录
+
+        Returns:
+            JSON 格式的列表和响应码
+        """
+        info_head = f"{request.remote_addr} {request.method} {request.path}"
+        try:
+            resp: dict[str, Any] = {
+                "success": True,
+                "message": "",
+                "list": _list_dir(cfg['storage']['path'])
+            }
+            logger.info(f'{info_head} 200 列举成功')
+            return jsonify(resp), 200
+        except Exception as e:
+            logger.warn(f'{info_head} 502 列举失败')
+            logger.warn('这是一个内部错误，请检查配置')
+            logger.warn(f'{e}')
+            return jsonify({
+                "success": False,
+                "message": "列举失败"
+            }), 502
+        
+    @main_route.route('/list/<directory>')
+    def list_dir(directory: str) -> tuple[Response, int]:
+        """
+        列出指定目录下所有目录
+
+        Returns:
+            JSON 格式的列表和响应码
+        """
+        info_head = f"{request.remote_addr} {request.method} {request.path}"
+        try:
+            resp: dict[str, Any] = {
+                "success": True,
+                "message": "",
+                "list": _list_dir(str(Path(cfg['storage']['path']) / directory))
+            }
+            logger.info(f'{info_head} 200 列举成功')
+            return jsonify(resp), 200
+        except FileNotFoundError:
+            logger.info(f'{info_head} 404 未找到目录')
+            return jsonify({
+                "success": False,
+                "message": "未找到目录"
+            }), 404
+        except Exception as e:
+            logger.warn(f'{info_head} 502 列举失败')
+            logger.warn('这是一个内部错误，请检查配置')
+            logger.warn(f'{e}')
+            return jsonify({
+                "success": False,
+                "message": "列举失败"
             }), 502
 
     return main_route
