@@ -1,0 +1,21 @@
+version: '3.8'
+
+services:
+  pelit:
+    image: ghcr.io/tokenicrat/pelit
+    container_name: pelit
+    restart: unless-stopped
+    volumes:
+      - ./data:/data
+      - ./config.toml:/config/pelit.toml
+    networks:
+      - pelit-network
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+        reservations:
+          memory: 128M
+
+networks:
+  pelit-network:

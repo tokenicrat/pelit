@@ -7,6 +7,8 @@ RUN pip install -r requirements.txt --no-cache-dir
 
 RUN mkdir /data
 
+COPY examples/gunicorn.conf.py /config/gunicorn.conf.py
+
 EXPOSE 8000
 
 ENV PELIT_CONFIG "/config/pelit.toml"
