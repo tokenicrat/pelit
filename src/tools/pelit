@@ -1,0 +1,57 @@
+#!/bin/bash
+
+set -e
+
+# 注意不要添加最后的斜线
+API_URL="https://example.com"
+AUTH="xxxxx"
+
+case "$1" in
+    upload)
+        # pelit upload /some/local/file.txt directory_on_server
+        link_re='^(http|https)://([^/]+)(/.*)?$'
+        if [[ "$2" =~ $link_re ]]; then
+            new_filename="$(openssl rand -hex 16)"
+            # 从 URL 中取出 basename
+            original_filename="$(basename "${BASH_REMATCH[3]}")"
+            extension="${original_filename##*.}"
+            location="/tmp/pelit_${new_filename}.${extension}"
+            curl -LsS "$2" -o "${location}"
+        else
+            location="$2"
+        fi
+
+        # 执行上传
+        resp="$(curl -sS -X POST \
+            -F "file=@${location}" \
+            -H "Authorization: ${AUTH}" \
+            "${API_URL}/upload/$3")"
+
+        # 提取返回 JSON 中的 url
+        echo "$resp" | jq -r '.url'
+        ;;
+
+    delete)
+        # pelit delete dir_on_server/file.txt
+        curl -sS -X DELETE \
+            -H "Authorization: ${AUTH}" \
+            "${API_URL}/delete/$2"
+        ;;
+
+    list)
+        # pelit list {dir_on_server, /}
+        if [ "$2" = "/" ]; then
+            path=""
+        else
+            path="/$2"
+        fi
+        curl -sS -X GET \
+            -H "Authorization: ${AUTH}" \
+            "${API_URL}/list${path}"
+        ;;
+
+    *)
+        echo "未知命令"
+        exit 1
+        ;;
+esac
