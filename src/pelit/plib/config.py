@@ -19,19 +19,9 @@ config_schema: JSONSchema = {
         },
         "network": {
             "type": "object",
-            "required": ["addr", "port"],
             "properties": {
                 "base_url": {
                     "type": "string"
-                },
-                "addr": {
-                    "type": "string",
-                    "anyOf": [{"format": "ipv4"}, {"format": "ipv6"}]
-                },
-                "port": {
-                    "type": "integer",
-                    "minimum": 1,
-                    "maximum": 65535
                 },
                 "hotlink_block": {
                     "type": "boolean"
