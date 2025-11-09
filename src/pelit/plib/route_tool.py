@@ -4,9 +4,7 @@ import hashlib
 from typing import Optional, Any
 from pathlib import Path
 from flask import request
-
-__all__ = ['authenticate', 'generate_file_name', 'enough_space',
-           'join_url', 'list_dir', 'is_attempting_traversal']
+import shutil
 
 def authenticate(cfg: dict[str, Any]) -> bool:
     """
@@ -102,3 +100,17 @@ def is_attempting_traversal(comp: str) -> bool:
     if '..' in comp or '/' in comp or '\\' in comp:
         return True
     return False
+
+def backup_to_file(path: Path, file: Path) -> None:
+    """
+    创建全目录备份
+
+    Args:
+        path: 需要备份的目录
+        file: 备份保存的文件
+    """
+
+    try:
+        shutil.make_archive(str(path), 'gztar', str(file))
+    except Exception:
+        pass
