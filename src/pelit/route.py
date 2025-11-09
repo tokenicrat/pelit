@@ -174,7 +174,7 @@ def create_route(cfg: dict[str, Any], lg: p_logger) -> Blueprint:
 
     @main_route.route('/list', methods=['GET'])
     @main_route.route('/list/<directory>', methods=['GET'])
-    def _list(directory: str = "/") -> tuple[Response, int]:
+    def _list(directory: str = "") -> tuple[Response, int]:
         """
         列出指定目录下所有目录
 
@@ -282,7 +282,7 @@ def create_route(cfg: dict[str, Any], lg: p_logger) -> Blueprint:
 
     @main_route.route('/backup', methods=['GET'])
     @main_route.route('/backup/<directory>', methods=['GET'])
-    def _backup(directory: str = '/') -> tuple[Response, int]:
+    def _backup(directory: str = '') -> tuple[Response, int]:
         """
         创建一个备份任务，具体方式在配置文件中指定
 
@@ -291,18 +291,29 @@ def create_route(cfg: dict[str, Any], lg: p_logger) -> Blueprint:
         """
         info_head = f"{request.remote_addr} {request.method} {request.path}"
 
-        bak_name = generate_file_name(cfg['storage']['path'], '.tar.gz')
-        bak_path = Path(cfg['storage']['path']) / (bak_name + '.tar.gz')
-        bak_url = join_url(cfg['network']['base_url'], bak_name + '.tar.gz')
+        if not authenticate(cfg):
+            lg.warn(f"{info_head} 401: 认证失败")
+            return jsonify({
+                "success": False,
+                "message": "认证失败"
+            }), 401
+
+        bak_name = generate_file_name(Path(cfg['storage']['path']), '.tar.gz')
+        bak_path = Path(cfg['storage']['path']) / bak_name
+        bak_url = join_url(
+            cfg['network']['base_url'] if 'network' in cfg['network'] else '',
+            bak_name + '.tar.gz')
 
         path = Path(cfg['storage']['path']) / directory
 
         # 创建新进程压缩备份
         # FIXME: 由于是多进程的，这个任务失败了也不会有表示
+        # FIXME: 备份会包括所有之前所有的 .tar.gz
         p = Process(target=backup_to_file, args=(path, bak_path))
         p.start()
 
         lg.info(f"{info_head} 200 备份任务创建成功")
+        lg.info(f"位置：{bak_path}.tar.gz")
         return jsonify({
             "success": True,
             "url": bak_url,

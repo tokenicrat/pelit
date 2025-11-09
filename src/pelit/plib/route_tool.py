@@ -22,13 +22,13 @@ def authenticate(cfg: dict[str, Any]) -> bool:
         token = token[7:]
     
     # 验证密钥，可用 PELIT_AUTH 环境变量或配置文件
-    if 'hashed' in cfg['auth'] and not 'from_env' in cfg['auth']:
+    if 'PELIT_AUTH' in os.environ and 'from_env' in cfg['auth'] and cfg['auth']['from_env']:
+        token_set: str = os.environ['PELIT_AUTH']
+        return token_set.upper() == token.upper()
+    elif 'hashed' in cfg['auth']:
         token_set: str = cfg['auth']['hashed']
         return token_set.upper() == \
             hashlib.sha256(token.encode('utf-8')).hexdigest().upper()
-    elif 'PELIT_AUTH' in os.environ and 'from_env' in cfg['auth']:
-        token_set: str = os.environ['PELIT_AUTH']
-        return token_set.upper() == token.upper()
     else:
         return False
 
@@ -109,8 +109,9 @@ def backup_to_file(path: Path, file: Path) -> None:
         path: 需要备份的目录
         file: 备份保存的文件
     """
+    print(path, file)
 
     try:
-        shutil.make_archive(str(path), 'gztar', str(file))
+        shutil.make_archive(str(file), 'gztar', str(path))
     except Exception:
         pass
