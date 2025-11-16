@@ -34,5 +34,4 @@ Documentation = "https://github.com/tokenicrat/pelit/wiki"
 Issues = "https://github.com/tokenicrat/pelit/issues"
 
 [project.scripts]
-pelitctl = "tools.pelitctl:main"
 pelit = "tools.pelit:main"
